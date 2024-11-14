@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Slideyouran";
+  src: url("./src/assets/Slideyouran-Regular.ttf") format("truetype");
+}
+
+body {
+}

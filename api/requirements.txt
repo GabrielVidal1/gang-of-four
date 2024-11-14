@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pillow
+stability-sdk
+python-multipart
+python-dotenv
