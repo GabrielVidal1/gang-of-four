@@ -2,7 +2,7 @@
 
 Generate Gang of four cards with AI generated background and inpainting
 
-![screenshot](./docs/screenshot.png)
+![screenshot](./docs/screenshot_V0.1.png)
 
 ## Examples
 
