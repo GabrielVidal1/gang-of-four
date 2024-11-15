@@ -1,16 +1,16 @@
-import base64
-import io
+"""Main FastAPI application."""
+
 import traceback
-from datetime import datetime
 
 import replicate
-import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from PIL import Image
 from pydantic import BaseModel
+
+from api.helpers import fetch_image_and_encode_base64, sanitize_filename
+from api.settings import BASE_PARAMS, MODELS, PARAMS
 
 load_dotenv()
 
@@ -29,9 +29,14 @@ app.add_middleware(
 
 # Pydantic model for request body
 class InpaintRequest(BaseModel):
+    model: str = "flux-dev-inpainting"
     image: str  # Base64-encoded image
     mask: str  # Base64-encoded mask
     prompt: str
+    # Additionnal Parameters
+    num_outputs: int = 1
+
+    # Optional parameters
     strength: float = 1.0
     guidance_scale: float = 7.0
     num_inference_steps: int = 30
@@ -41,48 +46,28 @@ class InpaintRequest(BaseModel):
     output_quality: int = 90
 
 
-# Helper function to encode image to base64
-def encode_base64_image(image: Image.Image, format: str = "WEBP") -> str:
-    buffered = io.BytesIO()
-    image.save(buffered, format=format)
-    return base64.b64encode(buffered.getvalue()).decode("utf-8")
-
-
-# Helper function to fetch image from URL and convert to Base64
-def fetch_image_and_encode_base64(url: str):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        img = Image.open(io.BytesIO(response.content))
-        return encode_base64_image(img), img
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching image: {str(e)}")
-
-
-def sanitize_filename(prompt: str) -> str:
-    date = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
-    return date + "-" + "".join(c if c.isalnum() else "_" for c in prompt)[:10]
-
-
 @app.post("/inpaint")
 async def inpaint(request: InpaintRequest):
+    model = request.model
+    if model not in MODELS:
+        raise HTTPException(status_code=400, detail=f"Model {model} not found")
+
+    params = PARAMS[model]
+
+    for param in BASE_PARAMS:
+        if not getattr(request, param):
+            raise HTTPException(status_code=400, detail=f"Missing parameter {param}")
+        params[param] = getattr(request, param)
+    for additional_param in PARAMS[model].keys():
+        params[additional_param] = getattr(
+            request, additional_param, PARAMS[model][additional_param]
+        )
+
     try:
         # Call the Replicate API
         output = replicate.run(
-            "zsxkib/flux-dev-inpainting:ca8350ff748d56b3ebbd5a12bd3436c2214262a4ff8619de9890ecc41751a008",
-            input={
-                "mask": request.mask,
-                "image": request.image,
-                "width": request.width,
-                "height": request.height,
-                "prompt": request.prompt,
-                "strength": request.strength,
-                "num_outputs": 1,
-                "output_format": request.output_format,
-                "guidance_scale": request.guidance_scale,
-                "output_quality": request.output_quality,
-                "num_inference_steps": request.num_inference_steps,
-            },
+            MODELS[request.model],
+            input=params,
         )
 
         # Assuming the output is a downloadable image
@@ -100,4 +85,7 @@ async def inpaint(request: InpaintRequest):
 
     except Exception:
         traceback.print_exc()
-        return JSONResponse
+        return JSONResponse(
+            status_code=500,
+            content={"message": "Internal Server Error"},
+        )
