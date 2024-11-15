@@ -1,7 +1,8 @@
 import React from "react";
 import Card from "./Card";
 import { Color, COLORS } from "../types/colors";
-import { Font, FONTS } from "../types/fonts";
+import { Font } from "../types/fonts";
+import { useConfig } from "../types/config";
 
 interface CardListProps {
   font?: Font;
@@ -12,21 +13,28 @@ interface CardListProps {
 
 const CardList: React.FC<CardListProps> = ({
   colors = COLORS,
-  font = FONTS[0],
   onClickCard,
   className,
 }) => {
+  const { results } = useConfig();
+  console.log("results", results);
   return (
     <div className={className}>
       {colors.map((color) => (
-        <div className="flex flex-row gap-2 justify-center p-2" key={color}>
+        <div
+          className="flex flex-row flex-wrap gap-2 justify-center p-2"
+          key={color}
+        >
           {Array.from({ length: 10 }, (_, index) => (
             <Card
+              renderType="full"
               key={index}
-              number={index + 1}
-              backgroundColor={color}
+              cardData={{
+                ...results?.[color]?.[index + 1],
+                number: index + 1,
+                backgroundColor: color,
+              }}
               width={50}
-              font={font}
               onClick={() => onClickCard && onClickCard(index + 1, color)}
             />
           ))}

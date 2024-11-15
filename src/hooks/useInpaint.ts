@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useConfig } from "../types/config";
 
-interface InpaintParams {
+export interface InpaintParams {
   mask: string; // URL of the mask image
   image: string; // URL of the input image
   width: number;
   height: number;
+  model?: string;
   prompt: string;
   strength?: number;
   num_outputs?: number;
@@ -15,6 +17,9 @@ interface InpaintParams {
 }
 
 const useInpaint = () => {
+  const {
+    config: { model },
+  } = useConfig();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +35,7 @@ const useInpaint = () => {
     output_format = "png",
     guidance_scale = 7,
     output_quality = 90,
-    num_inference_steps = 30,
+    num_inference_steps = 50,
   }: InpaintParams): Promise<string | null> => {
     setLoading(true);
     setError(null);
@@ -42,6 +47,7 @@ const useInpaint = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          model,
           mask,
           image,
           width,

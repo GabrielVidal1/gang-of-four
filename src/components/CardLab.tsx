@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import { ICard } from "../types/card";
-import { Color, COLORS } from "../types/colors";
-import { Font } from "../types/fonts";
 import Card, { ASPECT_RATIO } from "./Card";
 import CardList from "./CardList";
 import ConfigurableCardPanel from "./ConfigurableCardPanel";
 import useInpaint from "../hooks/useInpaint";
+import { useConfig } from "../types/config";
+import classNames from "classnames";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -13,22 +13,27 @@ const roundToNearest = (n: number, nearest: number) =>
   Math.round(n / nearest) * nearest;
 
 const CardLab: React.FC = () => {
-  const [selectedColors, setSelectedColors] = useState<Color[]>(
-    COLORS.concat()
-  );
-  const [selectedFont, setSelectedFont] = useState<Font>("sans-serif");
+  const {
+    setResult,
+    getResult,
+    config: {
+      colors,
+      cardsConfig: { font },
+      renderWidth,
+      prompt,
+      displayConfig: { showMask, showSource, viewWidth, showResult },
+    },
+  } = useConfig();
   const [selectedCard, setSelectedCard] = useState<ICard | null>(null);
-  const [showMask, setShowMask] = useState(false);
+  const [rendering, setRendering] = useState(false);
+
   const { inpaintImage, loading, error } = useInpaint();
 
-  const [renderWidth, setRenderWidth] = useState(512);
-  const [prompt, setPrompt] = useState(
-    "A beautifully detailed card design inspired by the style of Ernst Haeckel, featuring intricate and symmetrical patterns of marine life forms, like jellyfish, corals, and sea anemones. The artwork is rich in detail, with a harmonious blend of natural organic shapes and vibrant colors, capturing the essence of underwater biodiversity. The background features a subtle gradient of deep blues and aquamarine, highlighting the delicate lines and structures of the organisms."
-  );
-
   const renderCurrentCard = async () => {
-    setShowMask(true);
-    await sleep(500); // Wait for the mask to be rendered
+    if (rendering) return;
+    setRendering(true);
+    console.log("rendering current card...");
+    await sleep(1000); // Wait for the mask to be rendered
     if (!selectedCard) {
       console.log("no card selected");
       return;
@@ -54,105 +59,99 @@ const CardLab: React.FC = () => {
         selectedCard.backgroundColor,
     });
 
-    if (!resultbase64) return;
-    setSelectedCard({
+    if (!resultbase64) {
+      setRendering(false);
+      return;
+    }
+    const newCard: ICard = {
       ...selectedCard,
       resultbase64: "data:image/png;base64," + resultbase64,
-    });
-  };
+    };
 
-  const result = useMemo(() => selectedCard?.resultbase64, [selectedCard]);
+    setSelectedCard(newCard);
+    setResult(newCard.backgroundColor, newCard.number, newCard);
+    setRendering(false);
+  };
 
   return (
     <>
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
         <div className="grid grid-cols-4 gap-4">
-          <ConfigurableCardPanel
-            selectedColors={selectedColors}
-            selectedFont={selectedFont}
-            setSelectedColors={setSelectedColors}
-            setSelectedFont={setSelectedFont}
-            setShowMask={setShowMask}
-            showMask={showMask}
-            className="col-span-1"
-          />
+          <ConfigurableCardPanel className="col-span-1" />
           <CardList
-            className="col-span-3"
-            colors={selectedColors}
-            font={selectedFont}
+            className="col-span-2"
+            colors={colors}
+            font={font}
             onClickCard={(number, backgroundColor) => {
               setSelectedCard({
                 number,
                 backgroundColor,
-                width: 200,
-                font: selectedFont,
               });
             }}
           />
-        </div>
-        {selectedCard && (
-          <div className="p-5 flex gap-2">
-            <Card
-              number={selectedCard.number}
-              backgroundColor={selectedCard.backgroundColor}
-              width={renderWidth}
-              font={selectedFont}
-              onRender={async (context: HTMLCanvasElement) => {
-                console.log("rendering rawbase64");
-                setSelectedCard((prev) =>
-                  prev
-                    ? {
+          {selectedCard && (
+            <div className="flex flex-col items-center justify-center">
+              <div className="p-5 flex gap-2">
+                <Card
+                  cardData={selectedCard}
+                  renderType="source"
+                  className={classNames({
+                    hidden: !showSource,
+                  })}
+                  width={rendering ? renderWidth : viewWidth}
+                  onRender={async (context: HTMLCanvasElement) => {
+                    setSelectedCard((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            rawbase64: context.toDataURL(),
+                          }
+                        : null
+                    );
+                  }}
+                />
+                <Card
+                  cardData={selectedCard}
+                  width={rendering ? renderWidth : viewWidth}
+                  renderType="mask"
+                  className={classNames({
+                    hidden: !showMask,
+                  })}
+                  onRender={async (context: HTMLCanvasElement) => {
+                    await sleep(500); // Wait for the raw image to be rendered
+                    setSelectedCard((prev) => {
+                      if (!prev) return null;
+                      return {
                         ...prev,
-                        rawbase64: context.toDataURL(),
-                      }
-                    : null
-                );
-              }}
-              renderText={!showMask}
-            />
-            {showMask && (
-              <Card
-                number={selectedCard.number}
-                backgroundColor={selectedCard.backgroundColor}
-                width={renderWidth}
-                font={selectedFont}
-                mask
-                onRender={async (context: HTMLCanvasElement) => {
-                  console.log("rendering maskbase64");
-                  await sleep(500); // Wait for the raw image to be rendered
-                  setSelectedCard((prev) => {
-                    if (!prev) return null;
-                    return {
-                      ...prev,
-                      maskbase64: context.toDataURL(),
-                    };
-                  });
-                }}
-              />
-            )}
-          </div>
-        )}
-        <button
-          className="p-2 bg-blue-500 text-white rounded-lg"
-          onClick={() => renderCurrentCard()}
-          disabled={loading || !selectedCard}
-        >
-          Render card
-        </button>
+                        maskbase64: context.toDataURL(),
+                      };
+                    });
+                  }}
+                />
+                {showResult && (
+                  <Card
+                    cardData={getResult(selectedCard) ?? selectedCard}
+                    width={viewWidth}
+                    renderType="full"
+                  />
+                )}
+              </div>
+              <button
+                className={classNames("p-2 bg-blue-500 text-white rounded-lg", {
+                  "bg-gray-400": !selectedCard,
+                  "bg-blue-200": loading,
+                })}
+                onClick={() => renderCurrentCard()}
+                disabled={loading || !selectedCard}
+              >
+                Render card
+              </button>
+            </div>
+          )}
+        </div>
+
         {loading && <p>Generating...</p>}
         {error && <p>Error: {error}</p>}
-
-        {result && (
-          <img
-            style={{
-              width: renderWidth,
-              height: renderWidth * ASPECT_RATIO,
-            }}
-            src={result}
-            alt="Result"
-            className="border rounded-lg"
-          />
-        )}
       </div>
     </>
   );

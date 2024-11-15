@@ -1,31 +1,24 @@
 import React from "react";
 import { Color, COLORS } from "../types/colors";
-import { Font, FONTS } from "../types/fonts";
+import { FONTS } from "../types/fonts";
+import { useConfig } from "../types/config";
+import { MODELS } from "../constants/inpainting";
+import TransformWidget from "./TransformWidget";
 
 interface ConfigurableCardPanelProps {
-  selectedColors: Color[];
-  selectedFont: Font;
-  setSelectedColors: React.Dispatch<React.SetStateAction<Color[]>>;
-  setSelectedFont: React.Dispatch<React.SetStateAction<Font>>;
-
-  showMask?: boolean;
-  setShowMask?: React.Dispatch<React.SetStateAction<boolean>>;
-
   className?: string;
 }
 
 const ConfigurableCardPanel: React.FC<ConfigurableCardPanelProps> = ({
-  selectedColors,
-  selectedFont,
-  setSelectedColors,
-  setSelectedFont,
   className,
-  setShowMask,
-  showMask,
 }) => {
+  const { config, setConfigValue } = useConfig();
+
   // Handler for toggling colors
   const handleColorToggle = (color: Color) => {
-    setSelectedColors((prevColors) =>
+    const prevColors = config.colors;
+    setConfigValue(
+      "colors",
       prevColors.includes(color)
         ? prevColors.filter((c) => c !== color)
         : [...prevColors, color]
@@ -36,7 +29,10 @@ const ConfigurableCardPanel: React.FC<ConfigurableCardPanelProps> = ({
   const handleFontChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const selected = FONTS.find((font) => font === event.target.value);
     if (selected) {
-      setSelectedFont(selected);
+      setConfigValue("cardsConfig", {
+        ...config.cardsConfig,
+        font: selected,
+      });
     }
   };
 
@@ -52,7 +48,7 @@ const ConfigurableCardPanel: React.FC<ConfigurableCardPanelProps> = ({
               <label key={color} className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={selectedColors.includes(color)}
+                  checked={config.colors.includes(color)}
                   onChange={() => handleColorToggle(color)}
                 />
                 <span className="capitalize">{color}</span>
@@ -62,9 +58,18 @@ const ConfigurableCardPanel: React.FC<ConfigurableCardPanelProps> = ({
         </div>
 
         <div className="mb-4">
+          <h3 className="font-semibold mb-2">Prompt</h3>
+          <textarea
+            value={config.prompt}
+            onChange={(e) => setConfigValue("prompt", e.target.value)}
+            className="p-2 border rounded h-20"
+          />
+        </div>
+
+        <div className="mb-4">
           <h3 className="font-semibold mb-2">Select Font:</h3>
           <select
-            value={selectedFont}
+            value={config.cardsConfig.font}
             onChange={handleFontChange}
             className="p-2 border rounded"
           >
@@ -75,18 +80,87 @@ const ConfigurableCardPanel: React.FC<ConfigurableCardPanelProps> = ({
             ))}
           </select>
         </div>
-
+        <div>
+          <label className="flex items-center gap-2">
+            <select
+              value={config.model}
+              onChange={(e) => setConfigValue("model", e.target.value)}
+              className="p-2 border rounded"
+            >
+              {MODELS.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div>
           <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={showMask}
-              onChange={() => setShowMask?.((prev) => !prev)}
+              checked={config.displayConfig.showMask}
+              onChange={(e) =>
+                setConfigValue("displayConfig", {
+                  ...config.displayConfig,
+                  showMask: e.target.checked,
+                })
+              }
             />
-            <span>Show Mask</span>
+            Show Mask
           </label>
         </div>
+        <div>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={config.displayConfig.showSource}
+              onChange={(e) =>
+                setConfigValue("displayConfig", {
+                  ...config.displayConfig,
+                  showSource: e.target.checked,
+                })
+              }
+            />
+            Show Source
+          </label>
+        </div>
+        <div>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={config.displayConfig.showResult}
+              onChange={(e) =>
+                setConfigValue("displayConfig", {
+                  ...config.displayConfig,
+                  showResult: e.target.checked,
+                })
+              }
+            />
+            Show Result
+          </label>
+        </div>
+        <TransformWidget
+          name="Center"
+          transform={config.cardsConfig.centerChar}
+          onChange={(transform) => {
+            setConfigValue("cardsConfig", {
+              ...config.cardsConfig,
+              centerChar: transform,
+            });
+          }}
+        />
       </div>
+      <TransformWidget
+        name="Number in corner"
+        transform={config.cardsConfig.numberInCorner}
+        onChange={(transform) => {
+          setConfigValue("cardsConfig", {
+            ...config.cardsConfig,
+            numberInCorner: transform,
+          });
+        }}
+      />
     </div>
   );
 };
