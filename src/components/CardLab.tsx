@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ICard } from "../types/card";
 import Card, { ASPECT_RATIO } from "./Card";
 import CardList from "./CardList";
@@ -6,11 +6,11 @@ import ConfigurableCardPanel from "./ConfigurableCardPanel";
 import useInpaint from "../hooks/useInpaint";
 import { useConfig } from "../types/config";
 import classNames from "classnames";
+import BatchButton from "./BatchButton";
+import { Button } from "antd";
+import { roundToNearest } from "../services/helpers";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const roundToNearest = (n: number, nearest: number) =>
-  Math.round(n / nearest) * nearest;
 
 const CardLab: React.FC = () => {
   const {
@@ -25,15 +25,12 @@ const CardLab: React.FC = () => {
     },
   } = useConfig();
   const [selectedCard, setSelectedCard] = useState<ICard | null>(null);
-  const [rendering, setRendering] = useState(false);
 
-  const { inpaintImage, loading, error } = useInpaint();
+  const { inpaintImage, loading } = useInpaint();
 
   const renderCurrentCard = async () => {
-    if (rendering) return;
-    setRendering(true);
     console.log("rendering current card...");
-    await sleep(1000); // Wait for the mask to be rendered
+    // await sleep(1000); // Wait for the mask to be rendered
     if (!selectedCard) {
       console.log("no card selected");
       return;
@@ -48,7 +45,7 @@ const CardLab: React.FC = () => {
       return;
     }
 
-    const resultbase64 = await inpaintImage({
+    const result = await inpaintImage({
       image: rawbase64,
       mask: maskbase64,
       width: roundToNearest(renderWidth, 8),
@@ -59,18 +56,19 @@ const CardLab: React.FC = () => {
         selectedCard.backgroundColor,
     });
 
-    if (!resultbase64) {
-      setRendering(false);
+    if (!result) {
+      console.error("no result");
       return;
     }
     const newCard: ICard = {
       ...selectedCard,
-      resultbase64: "data:image/png;base64," + resultbase64,
+      resultbase64: "data:image/png;base64," + result.outputs[0].base64_image,
     };
+
+    console.log("newCard", newCard);
 
     setSelectedCard(newCard);
     setResult(newCard.backgroundColor, newCard.number, newCard);
-    setRendering(false);
   };
 
   return (
@@ -90,7 +88,7 @@ const CardLab: React.FC = () => {
             }}
           />
           {selectedCard && (
-            <div className="flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center justify-start">
               <div className="p-5 flex gap-2">
                 <Card
                   cardData={selectedCard}
@@ -98,7 +96,7 @@ const CardLab: React.FC = () => {
                   className={classNames({
                     hidden: !showSource,
                   })}
-                  width={rendering ? renderWidth : viewWidth}
+                  width={viewWidth}
                   onRender={async (context: HTMLCanvasElement) => {
                     setSelectedCard((prev) =>
                       prev
@@ -112,7 +110,7 @@ const CardLab: React.FC = () => {
                 />
                 <Card
                   cardData={selectedCard}
-                  width={rendering ? renderWidth : viewWidth}
+                  width={viewWidth}
                   renderType="mask"
                   className={classNames({
                     hidden: !showMask,
@@ -136,22 +134,21 @@ const CardLab: React.FC = () => {
                   />
                 )}
               </div>
-              <button
+              <Button
                 className={classNames("p-2 bg-blue-500 text-white rounded-lg", {
                   "bg-gray-400": !selectedCard,
                   "bg-blue-200": loading,
                 })}
                 onClick={() => renderCurrentCard()}
                 disabled={loading || !selectedCard}
+                loading={loading}
               >
                 Render card
-              </button>
+              </Button>
             </div>
           )}
+          <BatchButton />
         </div>
-
-        {loading && <p>Generating...</p>}
-        {error && <p>Error: {error}</p>}
       </div>
     </>
   );

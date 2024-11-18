@@ -17,7 +17,6 @@ const CardList: React.FC<CardListProps> = ({
   className,
 }) => {
   const { results } = useConfig();
-  console.log("results", results);
   return (
     <div className={className}>
       {colors.map((color) => (

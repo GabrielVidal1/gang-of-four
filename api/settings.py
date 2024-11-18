@@ -2,6 +2,8 @@
 
 LOG_IMAGES = True
 
+RETRY_LIMIT = 5
+
 MODELS = {
     "flux-dev-inpainting": "zsxkib/flux-dev-inpainting:ca8350ff748d56b3ebbd5a12bd3436c2214262a4ff8619de9890ecc41751a008",
     "stable-diffusion-inpainting": "stability-ai/stable-diffusion-inpainting:95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3",

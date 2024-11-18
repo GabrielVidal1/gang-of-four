@@ -1,10 +1,12 @@
-import React, { createContext, useEffect } from "react";
+import React, { createContext, useEffect, useState } from "react";
 import { InpaintParams } from "../hooks/useInpaint";
 import { Font, FONTS } from "./fonts";
 import { Color } from "./colors";
 import { Model } from "../constants/inpainting";
 import useLocalStorage from "../hooks/useLocalStorage";
 import { ICard } from "./card";
+import { wait } from "../services/helpers";
+import AssetsLoader from "../contexts/AssetsLoader";
 
 export interface Transform {
   scale: number;
@@ -90,6 +92,7 @@ interface ConfixContextType {
 
   results: Result;
   setResult: (color: Color, number: number, card: ICard) => void;
+  setResults: (results: Result) => void;
   getResult: (card: ICard) => ICard | null;
 }
 
@@ -99,6 +102,7 @@ const ConfigContext = createContext<ConfixContextType>({
 
   results: {} as Result,
   setResult: () => {},
+  setResults: () => {},
   getResult: () => null,
 });
 
@@ -127,6 +131,7 @@ const ConfigContextProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const setResult = (color: Color, number: number, card: ICard) => {
+    console.log("setting result", color, number, card);
     setResults((prevResults) => ({
       ...prevResults,
       [color]: {
@@ -160,10 +165,11 @@ const ConfigContextProvider: React.FC<{ children: React.ReactNode }> = ({
 
         results,
         setResult,
+        setResults,
         getResult,
       }}
     >
-      {children}
+      <AssetsLoader>{children}</AssetsLoader>
     </ConfigContext.Provider>
   );
 };

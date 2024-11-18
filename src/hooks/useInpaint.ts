@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useConfig } from "../types/config";
 
 export interface InpaintParams {
+  id?: string;
   mask: string; // URL of the mask image
   image: string; // URL of the input image
   width: number;
@@ -16,6 +17,12 @@ export interface InpaintParams {
   num_inference_steps?: number;
 }
 
+export type InpaintResult = {
+  id: string;
+  prompt: string;
+  outputs: { base64_image: string }[];
+};
+
 const useInpaint = () => {
   const {
     config: { model },
@@ -24,19 +31,9 @@ const useInpaint = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Function to fetch the processed image
-  const inpaintImage = async ({
-    mask,
-    image,
-    width,
-    height,
-    prompt,
-    strength = 1,
-    num_outputs = 1,
-    output_format = "png",
-    guidance_scale = 7,
-    output_quality = 90,
-    num_inference_steps = 50,
-  }: InpaintParams): Promise<string | null> => {
+  const inpaintImage = async (
+    params: InpaintParams
+  ): Promise<InpaintResult | null> => {
     setLoading(true);
     setError(null);
 
@@ -48,32 +45,13 @@ const useInpaint = () => {
         },
         body: JSON.stringify({
           model,
-          mask,
-          image,
-          width,
-          height,
-          prompt,
-          strength,
-          num_outputs,
-          output_format,
-          guidance_scale,
-          output_quality,
-          num_inference_steps,
+          ...params,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      return data.base64_image;
+      const data: InpaintResult = await response.json();
+      return data;
     } catch (err) {
+      console.error(err);
       setError((err as any)?.message);
       return null;
     } finally {

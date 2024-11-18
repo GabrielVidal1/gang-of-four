@@ -15,7 +15,7 @@ up.api:
 
 up:
 	PM2_HOME=${PM2_HOME} npx pm2 start ecosystem.config.cjs
-
+	$(MAKE) logs.front
 
 down:
 	PM2_HOME=${PM2_HOME} npx pm2 stop all

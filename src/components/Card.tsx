@@ -67,7 +67,10 @@ const Card: React.FC<CardProps> = ({
         width: width,
         height: width * ASPECT_RATIO,
       }}
-      onClick={onClick}
+      onClick={() => {
+        console.log("Card clicked", cardData);
+        onClick?.();
+      }}
     >
       <canvas ref={canvasRef} className="border rounded-lg" />
     </div>
